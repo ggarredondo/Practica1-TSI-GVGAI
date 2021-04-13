@@ -24,7 +24,7 @@ public class Test {
         String sampleRSController = "tracks.singlePlayer.advanced.sampleRS.Agent";
         String sampleRHEAController = "tracks.singlePlayer.advanced.sampleRHEA.Agent";
 		String sampleOLETSController = "tracks.singlePlayer.advanced.olets.Agent";
-		String controlador = "TSI.Agent";
+		String controlador = "src_garcia_arredondo_guillermo.Agent";
 
 		//Load available games
 		String spGamesCollection =  "examples/all_games_sp.csv";
