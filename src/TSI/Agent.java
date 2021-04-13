@@ -1,10 +1,11 @@
 package TSI;
 
 import core.game.StateObservation;
+import core.player.AbstractPlayer;
 import ontology.Types;
 import tools.ElapsedCpuTimer;
 
-public class Agent {
+public class Agent extends AbstractPlayer {
 
     public Agent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
 
