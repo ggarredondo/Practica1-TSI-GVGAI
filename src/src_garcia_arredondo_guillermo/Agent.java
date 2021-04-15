@@ -43,28 +43,28 @@ public class Agent extends AbstractPlayer {
     private void AEstrella(StateObservation stateObs, Vector2d inicio, Vector2d objetivo)
     {
         PriorityQueue<Nodo> abiertos = new PriorityQueue<>();
-        ArrayList<Estado> cerrados = new ArrayList<>();
+        ArrayList<Nodo> cerrados = new ArrayList<>();
         Nodo actual = new Nodo(inicio.x, inicio.y, 0, Types.ACTIONS.ACTION_RIGHT, null, objetivo), hijo;
         abiertos.add(actual);
 
         while (!abiertos.isEmpty() && !actual.esObjetivo()) {
             abiertos.remove(actual);
-            cerrados.add(actual.getSt());
+            cerrados.add(actual);
 
             hijo = actual.hijoUP(objetivo);
-            if (!esObstaculo(hijo.getSt().pos, stateObs) && !cerrados.contains(hijo.getSt()))
+            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
                 abiertos.add(hijo);
 
             hijo = actual.hijoDOWN(objetivo);
-            if (!esObstaculo(hijo.getSt().pos, stateObs) && !cerrados.contains(hijo.getSt()))
+            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
                 abiertos.add(hijo);
 
             hijo = actual.hijoLEFT(objetivo);
-            if (!esObstaculo(hijo.getSt().pos, stateObs) && !cerrados.contains(hijo.getSt()))
+            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
                 abiertos.add(hijo);
 
             hijo = actual.hijoRIGHT(objetivo);
-            if (!esObstaculo(hijo.getSt().pos, stateObs) && !cerrados.contains(hijo.getSt()))
+            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
                 abiertos.add(hijo);
 
             actual = abiertos.peek();
