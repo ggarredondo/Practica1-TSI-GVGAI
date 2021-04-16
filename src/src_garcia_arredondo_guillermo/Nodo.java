@@ -9,7 +9,7 @@ class Nodo implements Comparable<Nodo> {
     private Nodo padre;
     private Types.ACTIONS accion; // la acción de llegada al nodo
 
-    private int distanciaManhattam(double x1, double x2, double y1, double y2) { return (int) (Math.abs(x1-x2) + Math.abs(y1-y2)); }
+    int distanciaManhattam(double x1, double x2, double y1, double y2) { return (int) (Math.abs(x1-x2) + Math.abs(y1-y2)); }
 
     Nodo(double x, double y, int g, Types.ACTIONS accion, Nodo padre, Vector2d objetivo) {
         this.pos = new Vector2d(x, y);
@@ -21,7 +21,7 @@ class Nodo implements Comparable<Nodo> {
     }
 
     @Override
-    public boolean equals(Object o) { return pos.x == ((Nodo) o).pos.x && pos.y == ((Nodo) o).pos.y && accion == ((Nodo) o).accion; }
+    public boolean equals(Object o) { return pos.equals(((Nodo) o).pos) && accion == ((Nodo) o).accion; }
 
     public int compareTo(Nodo n) { return this.f - n.f; }
 
