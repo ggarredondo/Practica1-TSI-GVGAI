@@ -8,7 +8,7 @@ import tools.ElapsedCpuTimer;
 import tools.Vector2d;
 
 import java.util.ArrayList;
-import java.util.PriorityQueue;
+import java.util.Collections;
 import java.util.Stack;
 
 public class Agent extends AbstractPlayer {
@@ -42,35 +42,48 @@ public class Agent extends AbstractPlayer {
 
     private void AEstrella(StateObservation stateObs, Vector2d inicio, Vector2d objetivo)
     {
-        PriorityQueue<Nodo> abiertos = new PriorityQueue<>();
+        ArrayList<Nodo> abiertos = new ArrayList<>();
         ArrayList<Nodo> cerrados = new ArrayList<>();
-        Nodo actual = new Nodo(inicio.x, inicio.y, 0, Types.ACTIONS.ACTION_RIGHT, null, objetivo), hijo;
+        Stack<Nodo> sucesores = new Stack<>();
+        Nodo actual = new Nodo(inicio.x, inicio.y, 0, Types.ACTIONS.ACTION_RIGHT, null, objetivo), hijo, hijo_c;
+        int indexAbiertos = 0, indexCerrados;
         abiertos.add(actual);
 
         while (!abiertos.isEmpty() && !actual.esObjetivo()) {
-            abiertos.remove(actual);
+            abiertos.remove(indexAbiertos);
             cerrados.add(actual);
+            sucesores.push(actual.hijoUP(objetivo));
+            sucesores.push(actual.hijoDOWN(objetivo));
+            sucesores.push(actual.hijoLEFT(objetivo));
+            sucesores.push(actual.hijoRIGHT(objetivo));
 
-            hijo = actual.hijoUP(objetivo);
-            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
-                abiertos.add(hijo);
+            while (!sucesores.empty()) {
+                hijo = sucesores.pop();
+                indexCerrados = cerrados.indexOf(hijo);
+                indexAbiertos = abiertos.indexOf(hijo);
+                if (indexCerrados != -1) {
+                    hijo_c = cerrados.get(indexCerrados);
+                    if (hijo_c.getCoste() < hijo.getCoste()) {
+                        cerrados.remove(indexCerrados);
+                        abiertos.add(hijo_c);
+                    }
+                }
+                else if (indexAbiertos != -1) {
+                    hijo_c = abiertos.get(indexAbiertos);
+                    if (hijo.getCoste() < hijo_c.getCoste()) {
+                        abiertos.remove(indexAbiertos);
+                        abiertos.add(hijo);
+                    }
+                }
+                else if (!esObstaculo(hijo.getPos(), stateObs))
+                    abiertos.add(hijo);
+            }
 
-            hijo = actual.hijoDOWN(objetivo);
-            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
-                abiertos.add(hijo);
-
-            hijo = actual.hijoLEFT(objetivo);
-            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
-                abiertos.add(hijo);
-
-            hijo = actual.hijoRIGHT(objetivo);
-            if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
-                abiertos.add(hijo);
-
-            actual = abiertos.peek();
+            indexAbiertos = abiertos.indexOf(Collections.min(abiertos));
+            actual = abiertos.get(indexAbiertos);
         }
         if (actual.esObjetivo()) {
-            while (actual != null) {
+            while (actual.getPadre() != null) {
                 secuencia.add(actual.getAccion());
                 actual = actual.getPadre();
             }
