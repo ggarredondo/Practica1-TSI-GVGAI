@@ -10,7 +10,6 @@ import tools.Vector2d;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 import java.util.Stack;
-import java.util.concurrent.TimeUnit;
 
 public class Agent extends AbstractPlayer {
     Stack<Types.ACTIONS> secuencia;
@@ -32,23 +31,39 @@ public class Agent extends AbstractPlayer {
             AEstrella(stateObs, inicio, objetivo);
     }
 
+    Vector2d getClosestGem(StateObservation stateObs, Vector2d inicio) {
+        Vector2d pos = new Vector2d(inicio.x*fescala.x, inicio.y*fescala.y), min_v = new Vector2d();
+        int min_d = Integer.MAX_VALUE, d;
+        ArrayList<Observation> obs = stateObs.getResourcesPositions(pos)[0];
+        for (int i = 0; i < obs.size() && i < 3; ++i) {
+            pos = obs.get(i).position;
+            pos.x /= fescala.x;
+            pos.y /= fescala.y;
+            d = (int) (Math.abs(inicio.x-pos.x) + Math.abs(inicio.y-pos.y));
+            if (d < min_d) {
+                min_d = d;
+                min_v = pos;
+            }
+        }
+        return min_v;
+    }
+
     public Types.ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
         Vector2d semiobjetivo;
-        TimeUnit time = TimeUnit.SECONDS;
+        Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
         if (!secuencia.empty())
             siguiente = secuencia.pop();
         else if (hay_gemas && n_gemas < 9) {
-            semiobjetivo = new Vector2d(inicio.x*fescala.x, inicio.y*fescala.y);
-            semiobjetivo = stateObs.getResourcesPositions(semiobjetivo)[0].get(0).position;
-            semiobjetivo.x /= fescala.x;
-            semiobjetivo.y /= fescala.y;
+            semiobjetivo = getClosestGem(stateObs, inicio);
             AEstrella(stateObs, inicio, semiobjetivo);
             n_gemas += 1;
             inicio = semiobjetivo;
+            siguiente = secuencia.pop();
         }
-        else if (hay_gemas)
+        else if (hay_gemas) {
             AEstrella(stateObs, inicio, objetivo);
+            siguiente = secuencia.pop();
+        }
         return siguiente;
     }
 

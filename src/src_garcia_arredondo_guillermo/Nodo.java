@@ -9,7 +9,7 @@ class Nodo implements Comparable<Nodo> {
     private Nodo padre;
     private Types.ACTIONS accion; // la acción de llegada al nodo
 
-    int distanciaManhattam(double x1, double x2, double y1, double y2) { return (int) (Math.abs(x1-x2) + Math.abs(y1-y2)); }
+    private int distanciaManhattam(double x1, double x2, double y1, double y2) { return (int) (Math.abs(x1-x2) + Math.abs(y1-y2)); }
 
     Nodo(double x, double y, int g, Types.ACTIONS accion, Nodo padre, Vector2d objetivo) {
         this.pos = new Vector2d(x, y);
