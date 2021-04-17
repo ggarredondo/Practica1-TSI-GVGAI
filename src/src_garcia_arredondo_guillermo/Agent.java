@@ -10,6 +10,7 @@ import tools.Vector2d;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 import java.util.Stack;
+import java.util.concurrent.TimeUnit;
 
 public class Agent extends AbstractPlayer {
     Stack<Types.ACTIONS> secuencia;
@@ -17,28 +18,44 @@ public class Agent extends AbstractPlayer {
     int n_gemas;
     boolean hay_gemas, hay_enemigos;
     Vector2d inicio, objetivo;
+    ArrayList<Vector2d> obstaculos;
 
     public Agent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+        // Inicializar n_gemas, la pila de pasos, la escala, la posición inicio del avatar y la del portal
         n_gemas = 0;
         secuencia = new Stack<>();
         fescala = new Vector2d(stateObs.getWorldDimension().width/stateObs.getObservationGrid().length, stateObs.getWorldDimension().height/stateObs.getObservationGrid()[0].length);
         inicio = new Vector2d(Math.floor(stateObs.getAvatarPosition().x/fescala.x), Math.floor(stateObs.getAvatarPosition().y/fescala.y));
         Vector2d portal = stateObs.getPortalsPositions(stateObs.getAvatarPosition())[0].get(0).position;
         objetivo = new Vector2d(Math.floor(portal.x/fescala.x), Math.floor(portal.y/fescala.y));
+
+        // Añadir los obstáculos del mapa a una lista de obstáculos para luego sortearlos
+        obstaculos = new ArrayList<>();
+        ArrayList<Observation> immovables = stateObs.getImmovablePositions(stateObs.getAvatarPosition())[0];
+        for (Observation immovable : immovables)
+            obstaculos.add(new Vector2d(immovable.position.x / fescala.x, immovable.position.y / fescala.y));
+
+        // Comprobar el nivel de los 5 en el que nos encontramos
         hay_gemas = stateObs.getResourcesPositions() != null;
         hay_enemigos = stateObs.getNPCPositions() != null;
         if (!hay_gemas && !hay_enemigos)
             AEstrella(stateObs, inicio, objetivo);
     }
 
-    Vector2d getClosestGem(StateObservation stateObs, Vector2d inicio) {
+    // Para ralentizar el programa y depurar el camino obtenido
+    private void sleep(long ms) {
+        TimeUnit time = TimeUnit.MILLISECONDS;
+        try { time.sleep(ms); }
+        catch (InterruptedException e) { System.out.println("Interrupted while Sleeping"); }
+    }
+
+    private Vector2d getClosestGem(StateObservation stateObs, Vector2d inicio) {
         Vector2d pos = new Vector2d(inicio.x*fescala.x, inicio.y*fescala.y), min_v = new Vector2d();
         int min_d = Integer.MAX_VALUE, d;
         ArrayList<Observation> obs = stateObs.getResourcesPositions(pos)[0];
         for (int i = 0; i < obs.size() && i < 3; ++i) {
             pos = obs.get(i).position;
-            pos.x /= fescala.x;
-            pos.y /= fescala.y;
+            pos.set(pos.x/fescala.x, pos.y/fescala.y);
             d = (int) (Math.abs(inicio.x-pos.x) + Math.abs(inicio.y-pos.y));
             if (d < min_d) {
                 min_d = d;
@@ -49,14 +66,16 @@ public class Agent extends AbstractPlayer {
     }
 
     public Types.ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+        if (stateObs.getAvatarResources().get(6) != null)
+            n_gemas = stateObs.getAvatarResources().get(6);
         Vector2d semiobjetivo;
         Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
-        if (!secuencia.empty())
+        if (!secuencia.empty()) {
             siguiente = secuencia.pop();
+        }
         else if (hay_gemas && n_gemas < 9) {
             semiobjetivo = getClosestGem(stateObs, inicio);
             AEstrella(stateObs, inicio, semiobjetivo);
-            n_gemas += 1;
             inicio = semiobjetivo;
             siguiente = secuencia.pop();
         }
@@ -65,19 +84,6 @@ public class Agent extends AbstractPlayer {
             siguiente = secuencia.pop();
         }
         return siguiente;
-    }
-
-    private boolean esObstaculo(Vector2d pos, StateObservation stateObs) {
-        boolean result = false;
-        if (hay_gemas && n_gemas < 9 && pos.equals(objetivo))
-            result = true;
-        else {
-            pos = new Vector2d(pos.x * fescala.x, pos.y * fescala.y);
-            Vector2d cuadrante = stateObs.getImmovablePositions(pos)[0].get(0).position;
-            if (pos.equals(cuadrante))
-                result = true;
-        }
-        return result;
     }
 
     private void AEstrella(StateObservation stateObs, Vector2d inicio, Vector2d objetivo)
@@ -98,7 +104,7 @@ public class Agent extends AbstractPlayer {
 
             while (!sucesores.empty()) {
                 hijo = sucesores.pop();
-                if (!esObstaculo(hijo.getPos(), stateObs) && !cerrados.contains(hijo))
+                if (!obstaculos.contains(hijo.getPos()) && !cerrados.contains(hijo))
                     abiertos.add(hijo);
             }
 
