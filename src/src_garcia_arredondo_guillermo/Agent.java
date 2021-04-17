@@ -7,23 +7,26 @@ import ontology.Types;
 import tools.ElapsedCpuTimer;
 import tools.Vector2d;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 
 public class Agent extends AbstractPlayer {
-    Stack<Types.ACTIONS> secuencia;
-    Vector2d fescala;
-    int n_gemas;
-    boolean hay_gemas, hay_enemigos;
-    Vector2d inicio, objetivo;
-    ArrayList<Vector2d> obstaculos;
+    private ArrayDeque<Types.ACTIONS> secuencia;
+    private Vector2d fescala;
+    private int n_gemas;
+    private final int max_gemas = 9;
+    private final Types.ACTIONS initial_action = Types.ACTIONS.ACTION_RIGHT;
+    private boolean hay_gemas, hay_enemigos;
+    private Vector2d inicio, objetivo;
+    private ArrayList<Vector2d> obstaculos, gemas;
 
     public Agent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
         // Inicializar n_gemas, la pila de pasos, la escala, la posición inicio del avatar y la del portal
         n_gemas = 0;
-        secuencia = new Stack<>();
+        secuencia = new ArrayDeque<>();
         fescala = new Vector2d(stateObs.getWorldDimension().width/stateObs.getObservationGrid().length, stateObs.getWorldDimension().height/stateObs.getObservationGrid()[0].length);
         inicio = new Vector2d(Math.floor(stateObs.getAvatarPosition().x/fescala.x), Math.floor(stateObs.getAvatarPosition().y/fescala.y));
         Vector2d portal = stateObs.getPortalsPositions(stateObs.getAvatarPosition())[0].get(0).position;
@@ -39,7 +42,15 @@ public class Agent extends AbstractPlayer {
         hay_gemas = stateObs.getResourcesPositions() != null;
         hay_enemigos = stateObs.getNPCPositions() != null;
         if (!hay_gemas && !hay_enemigos)
-            AEstrella(stateObs, inicio, objetivo);
+            AEstrella(stateObs, inicio, objetivo, initial_action);
+        else if (hay_gemas && !hay_enemigos) {
+            // Añadir las gemas del mapa a una lista de gemas para llevar la cuenta
+            gemas = new ArrayList<>();
+            ArrayList<Observation> gems = stateObs.getResourcesPositions()[0];
+            for (Observation gem : gems)
+                gemas.add(new Vector2d(gem.position.x/fescala.x, gem.position.y/fescala.y));
+            Greedy(stateObs);
+        }
     }
 
     // Para ralentizar el programa y depurar el camino obtenido
@@ -49,49 +60,50 @@ public class Agent extends AbstractPlayer {
         catch (InterruptedException e) { System.out.println("Interrupted while Sleeping"); }
     }
 
-    private Vector2d getClosestGem(StateObservation stateObs, Vector2d inicio) {
-        Vector2d pos = new Vector2d(inicio.x*fescala.x, inicio.y*fescala.y), min_v = new Vector2d();
-        int min_d = Integer.MAX_VALUE, d;
-        ArrayList<Observation> obs = stateObs.getResourcesPositions(pos)[0];
-        for (int i = 0; i < obs.size() && i < 3; ++i) {
-            pos = obs.get(i).position;
-            pos.set(pos.x/fescala.x, pos.y/fescala.y);
-            d = (int) (Math.abs(inicio.x-pos.x) + Math.abs(inicio.y-pos.y));
-            if (d < min_d) {
-                min_d = d;
-                min_v = pos;
+    public Types.ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+        Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
+        if (!secuencia.isEmpty())
+            siguiente = secuencia.pollFirst();
+        return siguiente;
+    }
+
+    private Vector2d getClosestGem(Vector2d start) {
+        int d, min = Integer.MAX_VALUE;
+        Vector2d min_v = null;
+        for (Vector2d gema : gemas) {
+            d = (int) (Math.abs(start.x - gema.x) + Math.abs(start.y - gema.y));
+            if (d < min) {
+                min = d;
+                min_v = gema;
             }
         }
         return min_v;
     }
 
-    public Types.ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        if (stateObs.getAvatarResources().get(6) != null)
-            n_gemas = stateObs.getAvatarResources().get(6);
+    private void Greedy(StateObservation stateObs)
+    {
+        ArrayDeque<Types.ACTIONS> total = new ArrayDeque<>();
+        Types.ACTIONS ultima = initial_action;
         Vector2d semiobjetivo;
-        Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
-        if (!secuencia.empty()) {
-            siguiente = secuencia.pop();
-        }
-        else if (hay_gemas && n_gemas < 9) {
-            semiobjetivo = getClosestGem(stateObs, inicio);
-            AEstrella(stateObs, inicio, semiobjetivo);
+        while (n_gemas < max_gemas) {
+            semiobjetivo = getClosestGem(inicio);
+            AEstrella(stateObs, inicio, semiobjetivo, ultima);
+            total.addAll(secuencia);
+            secuencia.clear();
             inicio = semiobjetivo;
-            siguiente = secuencia.pop();
+            ultima = total.peekLast();
         }
-        else if (hay_gemas) {
-            AEstrella(stateObs, inicio, objetivo);
-            siguiente = secuencia.pop();
-        }
-        return siguiente;
+        AEstrella(stateObs, inicio, objetivo, ultima);
+        total.addAll(secuencia);
+        secuencia = total;
     }
 
-    private void AEstrella(StateObservation stateObs, Vector2d inicio, Vector2d objetivo)
+    private void AEstrella(StateObservation stateObs, Vector2d inicio, Vector2d objetivo, Types.ACTIONS ultima)
     {
         PriorityQueue<Nodo> abiertos = new PriorityQueue<>();
         ArrayList<Nodo> cerrados = new ArrayList<>();
         Stack<Nodo> sucesores = new Stack<>();
-        Nodo actual = new Nodo(inicio.x, inicio.y, 0, stateObs.getAvatarLastAction(), null, objetivo), hijo;
+        Nodo actual = new Nodo(inicio.x, inicio.y, 0, ultima, null, objetivo), hijo;
         abiertos.add(actual);
 
         while (!abiertos.isEmpty() && !actual.esObjetivo()) {
@@ -112,7 +124,13 @@ public class Agent extends AbstractPlayer {
         }
         if (actual.esObjetivo()) {
             while (actual.getPadre() != null) {
-                secuencia.add(actual.getAccion());
+                secuencia.addFirst(actual.getAccion());
+                if (hay_gemas) {
+                    if (gemas.contains(actual.getPos())) {
+                        gemas.remove(actual.getPos());
+                        n_gemas++;
+                    }
+                }
                 actual = actual.getPadre();
             }
         }
