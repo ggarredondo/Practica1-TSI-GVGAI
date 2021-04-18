@@ -18,14 +18,15 @@ public class Agent extends AbstractPlayer {
     private Vector2d fescala;
     private int n_gemas;
     private final int max_gemas = 9;
-    private final Types.ACTIONS initial_action = Types.ACTIONS.ACTION_RIGHT;
+    private Types.ACTIONS orientacion;
     private boolean hay_gemas, hay_enemigos;
     private Vector2d inicio, objetivo;
     private ArrayList<Vector2d> obstaculos, gemas;
 
     public Agent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        // Inicializar n_gemas, la pila de pasos, la escala, la posición inicio del avatar y la del portal
+        // Inicializar n_gemas, la orientación (dada por la última acción), la pila de pasos, la escala, la posición inicio del avatar y la del portal
         n_gemas = 0;
+        orientacion = Types.ACTIONS.ACTION_RIGHT;
         secuencia = new ArrayDeque<>();
         fescala = new Vector2d(stateObs.getWorldDimension().width/stateObs.getObservationGrid().length, stateObs.getWorldDimension().height/stateObs.getObservationGrid()[0].length);
         inicio = new Vector2d(Math.floor(stateObs.getAvatarPosition().x/fescala.x), Math.floor(stateObs.getAvatarPosition().y/fescala.y));
@@ -42,8 +43,8 @@ public class Agent extends AbstractPlayer {
         hay_gemas = stateObs.getResourcesPositions() != null;
         hay_enemigos = stateObs.getNPCPositions() != null;
         if (!hay_gemas && !hay_enemigos)
-            AEstrella(stateObs, inicio, objetivo, initial_action);
-        else if (hay_gemas && !hay_enemigos) {
+            AEstrella(stateObs, inicio, objetivo, orientacion);
+        else if (hay_gemas) {
             // Añadir las gemas del mapa a una lista de gemas para llevar la cuenta
             gemas = new ArrayList<>();
             ArrayList<Observation> gems = stateObs.getResourcesPositions()[0];
@@ -64,7 +65,43 @@ public class Agent extends AbstractPlayer {
         Types.ACTIONS siguiente = Types.ACTIONS.ACTION_NIL;
         if (!secuencia.isEmpty())
             siguiente = secuencia.pollFirst();
+        else if (hay_enemigos) {
+            Esquivar(stateObs);
+            siguiente = secuencia.pollFirst();
+        }
         return siguiente;
+    }
+
+    private void Esquivar(StateObservation stateObs)
+    {
+        ArrayList<Observation> npcs = stateObs.getNPCPositions(new Vector2d(inicio.x*fescala.x, inicio.y*fescala.y))[0];
+        ArrayList<Vector2d> enemigos = new ArrayList<>();
+        for (Observation npc : npcs) enemigos.add(new Vector2d(npc.position.x / fescala.x, npc.position.y / fescala.y));
+        obstaculos.addAll(enemigos);
+
+        NodoReactivo nodo = new NodoReactivo(inicio.x, inicio.y, 0, orientacion, 0, enemigos.get(0)), escogido;
+        Stack<NodoReactivo> sucesores = new Stack<>();
+        PriorityQueue<NodoReactivo> abiertos = new PriorityQueue<>();
+
+        sucesores.push(nodo.hijoUP(enemigos.get(0)));
+        sucesores.push(nodo.hijoDOWN(enemigos.get(0)));
+        sucesores.push(nodo.hijoLEFT(enemigos.get(0)));
+        sucesores.push(nodo.hijoRIGHT(enemigos.get(0)));
+        while (!sucesores.empty()) {
+            nodo = sucesores.pop();
+            if (!obstaculos.contains(nodo.getPos()))
+                abiertos.add(nodo);
+        }
+        obstaculos.removeAll(enemigos);
+
+        escogido = abiertos.peek();
+        if (escogido.getAccion() != secuencia.peekLast()) {
+            secuencia.clear();
+            inicio = escogido.getPos();
+            orientacion = escogido.getAccion();
+            for (int i = 0; i < escogido.getVeces_accion(); i++)
+                secuencia.addFirst(escogido.getAccion());
+        }
     }
 
     private Vector2d getClosestGem(Vector2d start) {
@@ -83,18 +120,18 @@ public class Agent extends AbstractPlayer {
     private void Greedy(StateObservation stateObs)
     {
         ArrayDeque<Types.ACTIONS> total = new ArrayDeque<>();
-        Types.ACTIONS ultima = initial_action;
         Vector2d semiobjetivo;
         while (n_gemas < max_gemas) {
             semiobjetivo = getClosestGem(inicio);
-            AEstrella(stateObs, inicio, semiobjetivo, ultima);
+            AEstrella(stateObs, inicio, semiobjetivo, orientacion);
             total.addAll(secuencia);
             secuencia.clear();
             inicio = semiobjetivo;
-            ultima = total.peekLast();
+            orientacion = total.peekLast();
         }
-        AEstrella(stateObs, inicio, objetivo, ultima);
+        AEstrella(stateObs, inicio, objetivo, orientacion);
         total.addAll(secuencia);
+        orientacion = total.peekLast();
         secuencia = total;
     }
 

@@ -30,13 +30,6 @@ class Nodo implements Comparable<Nodo> {
     Vector2d getPos() { return pos; }
     Types.ACTIONS getAccion() { return accion; }
     Nodo getPadre() { return padre; }
-    int getCoste() { return g; }
-    int getHeuristica() { return h; }
-
-    void setHeuristica(int h) {
-        this.h = h;
-        f = g + this.h;
-    }
 
     Nodo hijoUP(Vector2d objetivo) { return new Nodo(pos.x, pos.y-((Types.ACTIONS.ACTION_UP == accion) ? 1 : 0), g+1, Types.ACTIONS.ACTION_UP, this, objetivo); }
     Nodo hijoDOWN(Vector2d objetivo) { return new Nodo(pos.x, pos.y+((Types.ACTIONS.ACTION_DOWN == accion) ? 1 : 0), g+1, Types.ACTIONS.ACTION_DOWN, this, objetivo); }
