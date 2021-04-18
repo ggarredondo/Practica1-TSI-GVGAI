@@ -11,7 +11,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 import java.util.Stack;
-import java.util.concurrent.TimeUnit;
 
 public class Agent extends AbstractPlayer {
     private ArrayDeque<Types.ACTIONS> secuencia; // Cola de acciones a seguir por el agente.
